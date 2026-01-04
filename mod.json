@@ -1,0 +1,58 @@
+{
+	"geode": "4.10.0",
+	"gd": {
+		"win": "2.2074",
+		"android": "2.2074",
+		"mac": "2.2074",
+		"ios": "2.2074"
+	},
+	"id": "revalutionary.all-cubes",
+	"name": "All Cubes",
+	"version": "v1.0.0",
+	"settings": {
+		"enabled": {
+			"type": "bool",
+			"name": "Mod enabled",
+			"default": true
+		},
+		"cosmetic-title": {
+			"type": "title",
+			"name": "Cosmetic Settings"
+		},
+		"enabled-main-menu": {
+			"type": "bool",
+			"name": "Mod enabled on Main Menu background icons",
+			"description": "Determines if icons on the Main Menu's background are all cubes",
+			"default": true
+		},
+		"icon-rotation": {
+			"type": "bool",
+			"name": "Icon rotation",
+			"description": "If disabled, the visible cube icon will not rotate, showing the exact player hitbox (since the player hitbox doesn't rotate)",
+			"default": true
+		},
+		"enabled-platformer": {
+			"type": "bool",
+			"name": "Enabled in Platformer Mode",
+			"description": "If disabled, platformer icons will not all be cubes",
+			"default": true
+		},
+		"wave-size": {
+			"type": "float",
+			"name": "Wave Size",
+			"description": "Set the size of your wave gamemode cube",
+			"default": 0.35,
+			"min": 0.35,
+			"max": 1.00,
+			"control": {
+				"arrows": false,
+				"slider": true,
+				"slider-step": 0.01,
+				"input": true
+			}
+		}
+	},
+	"tags": ["joke", "gameplay", "offline"],
+	"developer": "Revalutionary",
+	"description": "Nakes every gamemode look like a cube"
+}
