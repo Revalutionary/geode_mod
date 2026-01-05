@@ -1,10 +1,11 @@
 #include <Geode/modify/GJGarageLayer.hpp>
-#include <Geode/Modify/PlayerObject.hpp>
+#include <Geode/modify/PlayerObject.hpp>
 #include <cue/PlayerIcon.hpp>
 
 using namespace geode::prelude;
 
 #include "MainPopupMenu.hpp"
+#include "globals.hpp"
 
 class $modify(HGJGarageLayer, GJGarageLayer) {
     bool init() {
@@ -43,138 +44,226 @@ class $modify(HPlayerObject, PlayerObject) {
 	// WIP
 	struct Fields {
 		cue::PlayerIcon* m_customSprite = nullptr;
+		bool enabled = false;
+		bool menuEnabled = false;
+		bool rotationEnabled = false;
+		bool platformerEnabled = false;
+		float waveSize = 0.35f;
+	};
+
+	enum Gamemodes : std::uint8_t {
+		Cube,
+		Ship,
+		Ball,
+		UFO,
+		Wave,
+		Robot,
+		Spider,
+		Swing,
 	};
 
 		bool init(int player, int ship, GJBaseGameLayer* gameLayer, CCLayer* layer, bool playLayer) {
 			if (!PlayerObject::init(player, ship, gameLayer, layer, playLayer)) 
 				return false;
-			if (Mod::get()->getSettingValue<bool>("enabled")) {
-				if (!PlayLayer::get() && !Mod::get()->getSettingValue<bool>("enabled-main-menu")) {
-					goto end;
-				}
-				auto fields = m_fields.self();
-
-				if (isShipCube || isBallCube || isUFOCube || isWaveCube || isRobotCube || isSpiderCube || isSwingCube) {
-					fields->m_customSprite = cue::PlayerIcon::create(IconType::Cube, player, GameManager::get()->m_playerColor, GameManager::get()->m_playerColor2, GameManager::get()->m_playerGlowColor);
-					fields->m_customSprite->setScale(1.f);
-					fields->m_customSprite->setAnchorPoint(ccp(0.f, 0.f));
-					fields->m_customSprite->setPosition(ccp(-16.5f, -16.5f));
-					fields->m_customSprite->setID("all-cubes-icon-replacement"_spr);
-					this->addChild(fields->m_customSprite, 20);
-					fields->m_customSprite->setVisible(true);
-				} else {
-					m_mainLayer->getChildByID("gamemode-frame")->setVisible(true);
-				}
+			auto fields = m_fields.self();
+			fields->enabled = Mod::get()->getSettingValue<bool>("enabled");
+			fields->menuEnabled = Mod::get()->getSettingValue<bool>("enabled-main-menu");
+			fields->rotationEnabled = Mod::get()->getSettingValue<bool>("icon-rotation");
+			fields->platformerEnabled = Mod::get()->getSettingValue<bool>("enabled-platformer");
+			fields->waveSize = static_cast<float>(Mod::get()->getSettingValue<double>("wave-size"));
+			if (m_isPlatformer && !(fields->platformerEnabled)) {
+				return true;
 			}
-			end:
+			if (!PlayLayer::get() && !(fields->menuEnabled)) {
+				return true;
+			}
+			if (!(fields->enabled)) {
+				return true;
+			}
+			if (isShipCube || isBallCube || isUFOCube || isWaveCube || isRobotCube || isSpiderCube || isSwingCube) {
+				fields->m_customSprite = cue::PlayerIcon::create(IconType::Cube, player, GameManager::get()->m_playerColor, GameManager::get()->m_playerColor2, GameManager::get()->m_playerGlowColor);
+				fields->m_customSprite->setScale(1.f);
+				fields->m_customSprite->setAnchorPoint(ccp(0.f, 0.f));
+				fields->m_customSprite->setPosition(ccp(-16.5f, -16.5f));
+				fields->m_customSprite->setID("all-cubes-icon-replacement"_spr);
+				this->addChild(fields->m_customSprite, 20);
+				fields->m_customSprite->setVisible(true);
+			} else {
+				m_mainLayer->getChildByID("gamemode-frame")->setVisible(true);
+			}
 			return true;
+		}
+
+		HPlayerObject::Gamemodes gamemode() {
+			if (m_isShip)
+				return Ship;
+			else if (m_isBall)
+				return Ball;
+			else if (m_isBird)
+				return UFO;
+			else if (m_isDart)
+				return Wave;
+			else if (m_isRobot)
+				return Robot;
+			else if (m_isSpider)
+				return Spider;
+			else if (m_isSwing)
+				return Swing;
+			else 
+				return Cube;
 		}
 
 		void update(float dt) {
 			PlayerObject::update(dt);
 
-			if (Mod::get()->getSettingValue<bool>("enabled")) {
+			auto fields = m_fields.self();
 
-				m_mainLayer->getChildByID("gamemode-frame")->setVisible(false);
+			// if mod isn't enabled
+			if (!(fields->enabled)) {
+				return;
+			}
 
-				auto fields = m_fields.self();
-				bool m_isCube = !m_isShip && !m_isBird && !m_isBall && !m_isDart && !m_isRobot && !m_isSpider && !m_isSwing;
+			if (!(isShipCube || isBallCube || isUFOCube || isWaveCube || isRobotCube || isSpiderCube || isSwingCube)) {
+				return;
+			}
 
-				if (!PlayLayer::get() && !Mod::get()->getSettingValue<bool>("enabled-main-menu")) {
-					m_mainLayer->getChildByID("glow-frame")->setVisible(true);
-					m_mainLayer->getChildByID("gamemode-frame")->setVisible(true);
-					goto trueEnd;
-				}
+			// if in platformer and platformer is disabled
+			if (m_isPlatformer && !(fields->platformerEnabled)) {
+				return;
+			}
 
-				if (isShipCube || isBallCube || isUFOCube || isWaveCube || isRobotCube || isSpiderCube || isSwingCube) {
-					if (auto gamemodeFrame = m_mainLayer->getChildByID("gamemode-frame"))
-						gamemodeFrame->setVisible(false);
-						m_mainLayer->getChildByID("glow-frame")->setVisible(false);
-				} else {
-					goto end; // if nothing is enabled, skip the rest of the if statements and enable original gamemode sprite
-				}
-
-				if ((this->m_isShip && isShipCube) || (this->m_isBird && isUFOCube) && fields->m_customSprite) {	
-					if (m_mainLayer->getChildByID("ship-frame")) {
-						m_mainLayer->getChildByID("ship-frame")->setVisible(false);
-					}
-					if (!Mod::get()->getSettingValue<bool>("icon-rotation")) {
-						this->setRotation(0.f);
-					}
-				} else if (this->m_isRobot && isRobotCube && fields->m_customSprite) {
-					this->m_robotBatchNode->setVisible(false);
-				} else if (this->m_isSpider && isSpiderCube && fields->m_customSprite) {
-					this->m_spiderBatchNode->setVisible(false);
-				} else if (this->m_isSwing && isSwingCube && fields->m_customSprite) {
-					m_mainLayer->getChildByID("swing-bottom-boost")->setVisible(true);
-					m_mainLayer->getChildByID("swing-middle-boost")->setVisible(true);
-					m_mainLayer->getChildByID("swing-top-boost")->setVisible(true);
-					if (!Mod::get()->getSettingValue<bool>("icon-rotation")) {
-						this->setRotation(0.f);
-					}
-				} else if (this->m_isBall && isBallCube && fields->m_customSprite) {
-					if (!Mod::get()->getSettingValue<bool>("icon-rotation")) {
-						this->setRotation(0.f);
-					}
-				} else if (this->m_isDart && isWaveCube && fields->m_customSprite) {
-					fields->m_customSprite->setScale(static_cast<float>(Mod::get()->getSettingValue<double>("wave-size")));
-				} else if (m_isCube && fields->m_customSprite) {
-					if (!Mod::get()->getSettingValue<bool>("icon-rotation")) {
-						this->setRotation(0.f);
-					}
-				} else if (!fields->m_customSprite) {
-					geode::log::error("Couldn't grab cube sprite");
-				} else {
-					goto end; // getting here implies that the user doesn't have the gamemode they are in enabled, meaning we must enable the og gamemode's sprite
-				}
-				fields->m_customSprite->setVisible(true);
-				goto trueEnd; // skip nothing enabled function call
-				end:
+			// If on main menu bg and main menu bg icons are disabled
+			if (!(PlayLayer::get()) && !(fields->menuEnabled)) {
 				m_mainLayer->getChildByID("glow-frame")->setVisible(true);
 				m_mainLayer->getChildByID("gamemode-frame")->setVisible(true);
-				fields->m_customSprite->setVisible(false);
-				trueEnd:
-				if (m_isPlatformer && !Mod::get()->getSettingValue<bool>("enabled-platformer")) {
-					fields->m_customSprite->setVisible(false);
-					m_mainLayer->getChildByID("glow-frame")->setVisible(true);
-					m_mainLayer->getChildByID("gamemode-frame")->setVisible(true);
-					if (m_isRobot && isRobotCube) {
+				return;
+			}
+
+			auto activeMode = this->gamemode();
+
+			switch (activeMode) {
+				case Ship: {
+					if (m_mainLayer->getChildByID("ship-frame")) {
+						if (!isShipCube) {
+							m_mainLayer->getChildByID("ship-frame")->setVisible(true);
+							goto activeDisabled;
+						} else {
+							m_mainLayer->getChildByID("ship-frame")->setVisible(false);
+							if (!fields->rotationEnabled) {
+								this->setRotation(0.f);
+							}
+							m_mainLayer->getChildByID("ship-frame")->setVisible(false);
+							goto activeEnabled;
+						}
+					}
+				}
+				case UFO: {	
+					if (m_mainLayer->getChildByID("ship-frame")) {
+						if (!isUFOCube) {
+							m_mainLayer->getChildByID("ship-frame")->setVisible(true);
+							goto activeDisabled;
+						} else {
+							if (!fields->rotationEnabled) {
+								this->setRotation(0.f);
+							}
+							m_mainLayer->getChildByID("ship-frame")->setVisible(false);
+							goto activeEnabled;
+						}
+					}
+				}
+				case Ball: {
+					if (!isBallCube) {
+						goto activeDisabled;
+					} else {
+						if (!fields->rotationEnabled) {
+							this->setRotation(0.f);
+						}
+						goto activeEnabled;
+					}
+				}
+				case Cube: {
+					if (!fields->rotationEnabled) {
+						this->setRotation(0.f);
+					}
+					goto activeEnabled;
+				}
+				case Robot: {
+					if (!isRobotCube) {
 						m_robotBatchNode->setVisible(true);
-						m_mainLayer->getChildByID("gamemode-frame")->setVisible(false);
-					} else if (m_isSpider && isSpiderCube) {
+						goto activeDisabled;
+					} else {
+						m_robotBatchNode->setVisible(false);
+						goto activeEnabled;
+					}
+				}
+				case Spider: {
+					if (!isSpiderCube) {
 						m_spiderBatchNode->setVisible(true);
-						m_mainLayer->getChildByID("gamemode-frame")->setVisible(false);
-					} else if ((m_isShip && isShipCube) || (m_isBird && isUFOCube)) {
-						m_mainLayer->getChildByID("ship-frame")->setVisible(true);
+						goto activeDisabled;
+					} else {
+						m_spiderBatchNode->setVisible(false);
+						goto activeEnabled;
+					}
+				}
+				case Wave: {
+					if (!isWaveCube) {
+						goto activeDisabled;
+					} else {
+						fields->m_customSprite->setScale(fields->waveSize);
+						goto activeEnabled;
+					}
+				}
+				case Swing: {
+					if (!isSwingCube) {
+						goto activeDisabled;
+					} else {
+						m_mainLayer->getChildByID("swing-bottom-boost")->setVisible(true);
+						m_mainLayer->getChildByID("swing-middle-boost")->setVisible(true);
+						m_mainLayer->getChildByID("swing-top-boost")->setVisible(true);
+						if (!fields->rotationEnabled) {
+							this->setRotation(0.f);
+						}
+						goto activeEnabled;
 					}
 				}
 			}
+			activeDisabled:
+					m_mainLayer->getChildByID("glow-frame")->setVisible(true);
+					m_mainLayer->getChildByID("gamemode-frame")->setVisible(true);
+					fields->m_customSprite->setVisible(false);
+				return;
+
+			activeEnabled:
+				m_mainLayer->getChildByID("glow-frame")->setVisible(false);
+				m_mainLayer->getChildByID("gamemode-frame")->setVisible(false);
+				fields->m_customSprite->setVisible(true);
+			return;
 		}
 
 		void toggleDartMode(bool enable, bool noEffects) {
+			auto fields = m_fields.self();
 			PlayerObject::toggleDartMode(enable, noEffects);
-			if (Mod::get()->getSettingValue<bool>("enabled")) {
-				if (!PlayLayer::get() && !Mod::get()->getSettingValue<bool>("enabled-main-menu")) {
+			if (fields->enabled) {
+				if (!PlayLayer::get() && !fields->menuEnabled) {
 					m_mainLayer->getChildByID("glow-frame")->setVisible(true);
 					m_mainLayer->getChildByID("gamemode-frame")->setVisible(true);
-					goto end;
+					return;
 				}
-				auto fields = m_fields.self();
+				
 
 				if (enable && isWaveCube) {
-					fields->m_customSprite->setScale(static_cast<float>(Mod::get()->getSettingValue<double>("wave-size")));
+					fields->m_customSprite->setScale(fields->waveSize);
 					fields->m_customSprite->setPosition(ccp(-5.5f, -5.5f));
 				} else if (!enable && isWaveCube) {
 					fields->m_customSprite->setScale(1.f);
 					fields->m_customSprite->setPosition(ccp(-16.5f, -16.5f));
 				}
 			}
-			end:
 		}
 
 		void playDeathEffect() {
-			if (Mod::get()->getSettingValue<bool>("enabled")){
-				auto fields = m_fields.self();
+			auto fields = m_fields.self();
+			if (fields->enabled){
 				fields->m_customSprite->setVisible(false);
 				m_mainLayer->getChildByID("gamemode-frame")->setVisible(true);
 			}
@@ -183,13 +272,12 @@ class $modify(HPlayerObject, PlayerObject) {
 		}
 
 		void playCompleteEffect(bool noEffects, bool instant) {		
-			if (Mod::get()->getSettingValue<bool>("enabled")) {
-				auto fields = m_fields.self();
+			auto fields = m_fields.self();
+			if (fields->enabled) {
 				fields->m_customSprite->setVisible(false);
 			}	
 			PlayerObject::playCompleteEffect(noEffects, instant);
 		}
-
 };
 
 
@@ -211,5 +299,5 @@ You thought I was done? No no no, you can't escape this pal. I coded this mod so
 With all disrespect,
 Revalutionary
 
-(I would've coded this entire thing in TürkçeKod to make your life harder (and "That's just cool") but I couldn't be bothered)
+(I would've coded this entire thing in TürkçeKod to make your life harder (and "that's just cool") but I couldn't be bothered)
 */
